@@ -1,0 +1,455 @@
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+  <meta charset="UTF-8">
+  <title>Smart Camera System</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0f172a;
+      color: white;
+      margin: 0;
+      padding: 20px;
+    }
+    header {
+      position: sticky;
+      top: 0;
+      background: #0f172a;
+      padding: 10px 0;
+      z-index: 100;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #38bdf8;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    h2 {
+      margin: 0;
+      font-size: 28px;
+      color: #38bdf8;
+      text-shadow: 0 0 10px #38bdf8, 0 0 20px #0ea5e9;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    select, button, input[type=number], input[type=range] {
+      padding: 5px 8px;
+      background: rgba(30,41,59,0.8);
+      border: 1px solid #38bdf8;
+      color: #38bdf8;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    select:hover, button:hover {
+      background: rgba(56,189,248,0.2);
+      cursor: pointer;
+    }
+    .chart-row {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    .scroll-container {
+      background: rgba(30,41,59,0.8);
+      border-radius: 15px;
+      box-shadow: 0 0 20px rgba(56,189,248,0.5);
+      padding: 10px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .chart-scroll {
+      width: 100%;
+      height: 160px;
+    }
+    .center {
+      justify-content: center;
+    }
+    .half {
+      max-width: calc(50% - 10px);
+    }
+    .sma-settings {
+      margin-top: 15px;
+      background: rgba(30,41,59,0.8);
+      padding: 10px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(56,189,248,0.3);
+      display: none; /* ban đầu ẩn */
+    }
+
+.yt-wrap {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  max-width: 100%;
+  padding-bottom: 20px;
+}
+
+.yt-wrap iframe {
+  width: 60%; /* cho video to hơn một chút */
+  aspect-ratio: 16 / 9;
+  border-radius: 16px;
+  border: 3px solid transparent;
+  background: linear-gradient(#0f172a, #0f172a) padding-box,
+              linear-gradient(135deg, #38bdf8, #0ea5e9, #a855f7) border-box;
+  box-shadow: 0 0 25px rgba(56, 189, 248, 0.6),
+              0 0 50px rgba(168, 85, 247, 0.4);
+  transition: transform 0.4s ease, box-shadow 0.4s ease;
+}
+/* 
+.yt-wrap iframe:hover {
+  transform: scale(1.03);
+  box-shadow: 0 0 40px rgba(56, 189, 248, 0.9),
+              0 0 80px rgba(168, 85, 247, 0.6);
+} */
+
+    .forpadding {
+      height: 20px; /* Khoảng cách dưới header */
+    }
+
+  </style>
+  </head>
+  <body>
+
+  <header>
+    <h2>📷 Smart Camera System</h2>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+      <!-- Menu dropdown -->
+      <select id="mainMenu">
+        <option value="hienthi">Hiển thị Data</option>
+        <option value="phanTich">Phân tích Data</option>
+        <option value="dieuKhien">Điều khiển</option>
+      </select>
+
+      <select id="avgOption">
+        <option value="none">Raw Data</option>
+        <option value="minute">Average by Minute</option>
+        <option value="hour">Average by Hour</option>
+        <option value="month">Average by Month</option>
+        <option value="overall">Show Overall Average</option>
+      </select>
+
+      <label style="color:white;">Points:
+        <input type="number" id="pointsToShow" value="50" min="10" style="width:60px;">
+      </label>
+
+      <input type="range" id="scrollX" min="0" max="0" value="0" style="width:200px;">
+      <button onclick="resetScroll()">⟳ Reset</button>
+      <button onclick="exportCSV()">⬇ Export CSV</button>
+      <button onclick="toggleFullscreen()">⛶ Fullscreen</button>
+    </div>
+  </header>
+  <div class ="forpadding"></div>
+  <!-- Khu vực YouTube Live --> 
+  <div class="yt-wrap">
+    <iframe id="yt-frame"
+      src=""
+      title="YouTube Live"
+      frameborder="0"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+      allowfullscreen>
+    </iframe>
+  </div>
+
+  <!-- Khu vực SMA -->
+  <div class="sma-settings" id="smaSettings">
+    <label style="color:white;">SMA Points:
+      <input type="number" id="smaPoints" value="5" min="2" style="width:60px;">
+    </label>
+    <button id="toggleSMA">Bật SMA</button>
+  </div>
+
+  <div class="chart-row">
+    <div class="scroll-container">
+      <canvas id="chartTemp" class="chart-scroll"></canvas>
+    </div>
+    <div class="scroll-container">
+      <canvas id="chartHum" class="chart-scroll"></canvas>
+    </div>
+  </div>
+  <div class="chart-row">
+    <div class="scroll-container">
+      <canvas id="chartGas1" class="chart-scroll"></canvas>
+    </div>
+    <div class="scroll-container">
+      <canvas id="chartGas2" class="chart-scroll"></canvas>
+    </div>
+  </div>
+  <div class="chart-row center">
+    <div class="scroll-container half">
+      <canvas id="chartFire" class="chart-scroll"></canvas>
+    </div>
+  </div>
+  <script>
+
+  const SHEET_ID = "1CakPqBtVrLcpgdrVt_wVucJR0k4_9Fbq_VlzMUJmPCc";
+  const SHEET_NAME = "Sheet1";
+  const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${SHEET_NAME}`;
+
+  // 📝 Chỉ cần đổi VIDEO_ID ở đây
+    const VIDEO_ID = "x9kzgjxY3FQ";
+    const autoplay = 1;
+    const mute = 1;
+
+  let charts = {};
+  let allData = { labels: [], temp: [], hum: [], gas1: [], gas2: [], fire: [] };
+  let autoScroll = true;
+  let smaEnabled = false; // bật/tắt SMA
+
+  function createChart(ctx, label, color, icon) {
+    return new Chart(ctx, {
+      type: 'line',
+      data: { 
+        labels: [], 
+        datasets: [{
+          label: icon + " " + label,
+          data: [],
+          borderColor: color,
+          backgroundColor: color + "33",
+          fill: false,
+          tension: 0.3,
+          pointRadius: 2,
+          pointHoverRadius: 4,
+          order: 1
+        }]
+      },
+      options: {
+        responsive: false,
+        maintainAspectRatio: false,
+        animation: false,
+        scales: {
+          x: { ticks: { color: color }, grid: { color: '#1e293b' } },
+          y: { ticks: { color: color }, grid: { color: '#1e293b' } }
+        },
+        layout: { padding: 8 },
+        plugins: {
+          chartAreaBorder: {
+            borderColor: color + '34',
+            borderWidth: 2,
+            borderRadius: 10,
+            expand: 5 // thêm khoảng cách ra ngoài
+          }
+        }
+      },
+      plugins: [{
+        id: 'chartAreaBorder',
+        beforeDraw(chart) {
+          const { ctx, chartArea: { left, top, width, height } } = chart;
+          const { borderColor, borderWidth, borderRadius, expand } = chart.options.plugins.chartAreaBorder;
+
+          ctx.save();
+          ctx.strokeStyle = borderColor;
+          ctx.lineWidth = borderWidth;
+          ctx.beginPath();
+
+          const r = borderRadius;
+          const ex = expand;
+
+          // Vẽ bo góc nhưng mở rộng ra ngoài
+          ctx.moveTo(left - ex + r, top - ex);
+          ctx.lineTo(left + width + ex - r, top - ex);
+          ctx.quadraticCurveTo(left + width + ex, top - ex, left + width + ex, top - ex + r);
+          ctx.lineTo(left + width + ex, top + height + ex - r);
+          ctx.quadraticCurveTo(left + width + ex, top + height + ex, left + width + ex - r, top + height + ex);
+          ctx.lineTo(left - ex + r, top + height + ex);
+          ctx.quadraticCurveTo(left - ex, top + height + ex, left - ex, top + height + ex - r);
+          ctx.lineTo(left - ex, top - ex + r);
+          ctx.quadraticCurveTo(left - ex, top - ex, left - ex + r, top - ex);
+          ctx.closePath();
+
+          ctx.stroke();
+          ctx.restore();
+        }
+      }]
+    });
+  }
+
+  function calculateSMA(data, windowSize) {
+    if (!Array.isArray(data) || data.length === 0) return [];
+    let sma = [];
+    for (let i = 0; i < data.length; i++) {
+      if (i < windowSize - 1) {
+        sma.push(null);
+      } else {
+        let sum = 0;
+        for (let j = i - windowSize + 1; j <= i; j++) {
+          sum += data[j];
+        }
+        sma.push(sum / windowSize);
+      }
+    }
+    return sma;
+  }
+
+  function updateSMA() {
+    const n = parseInt(document.getElementById("smaPoints").value, 10);
+    for (let key of ["chartTemp", "chartHum", "chartGas1", "chartGas2", "chartFire"]) {
+      const chart = charts[key];
+      // Xóa SMA cũ
+      chart.data.datasets = chart.data.datasets.filter(ds => !ds.label.includes("(SMA)"));
+      if (smaEnabled) {
+        const originalData = chart.data.datasets[0].data;
+        const smaValues = calculateSMA(originalData, n);
+        // Thêm SMA dataset với order cao để vẽ sau cùng
+        chart.data.datasets.push({
+          label: chart.data.datasets[0].label + " (SMA)",
+          data: smaValues,
+          borderColor: "#ff00ff",
+          backgroundColor: "transparent",
+          borderWidth: 2,
+          fill: false,
+          tension: 0.2,
+          pointRadius: 0, // không vẽ điểm để rõ hơn
+          order: 9999     // vẽ cuối cùng
+        });
+      }
+      chart.update();
+    }
+  }
+
+
+  async function fetchData() {
+    const res = await fetch(SHEET_URL);
+    const text = await res.text();
+    let rows = text.trim().split("\n").map(r => r.split(",").map(c => c.replace(/(^"|"$)/g, "")));
+
+    const avgMode = document.getElementById("avgOption").value;
+    if (avgMode !== "none" && avgMode !== "overall") {
+      rows = aggregateData(rows, avgMode);
+    }
+
+    allData.labels = rows.map(r => r[0]);
+    allData.temp   = rows.map(r => parseFloat(r[1]));
+    allData.hum    = rows.map(r => parseFloat(r[2]));
+    allData.gas1   = rows.map(r => parseFloat(r[3]));
+    allData.gas2   = rows.map(r => parseFloat(r[4]));
+    allData.fire   = rows.map(r => parseFloat(r[5]));
+
+    document.getElementById("scrollX").max = Math.max(0, allData.labels.length - getPointsToShow());
+
+    if (autoScroll) {
+      resetScroll();
+    } else {
+      updateVisibleData();
+    }
+  }
+
+  function getPointsToShow() {
+    return parseInt(document.getElementById("pointsToShow").value) || 50;
+  }
+
+  function updateVisibleData() {
+    const startIndex = parseInt(document.getElementById("scrollX").value);
+    const endIndex = startIndex + getPointsToShow();
+
+    updateChartData(charts.chartTemp, allData.labels.slice(startIndex, endIndex), allData.temp.slice(startIndex, endIndex));
+    updateChartData(charts.chartHum,  allData.labels.slice(startIndex, endIndex), allData.hum.slice(startIndex, endIndex));
+    updateChartData(charts.chartGas1, allData.labels.slice(startIndex, endIndex), allData.gas1.slice(startIndex, endIndex));
+    updateChartData(charts.chartGas2, allData.labels.slice(startIndex, endIndex), allData.gas2.slice(startIndex, endIndex));
+    updateChartData(charts.chartFire, allData.labels.slice(startIndex, endIndex), allData.fire.slice(startIndex, endIndex));
+
+    // cập nhật SMA khi có thay đổi dữ liệu hiển thị
+    updateSMA();
+  }
+
+  function updateChartData(chart, labels, data) {
+    chart.data.labels = labels;
+    chart.data.datasets[0].data = data;
+  }
+
+  function aggregateData(rows, mode) {
+    const grouped = {};
+    rows.forEach(r => {
+      let date = new Date(r[0]);
+      let key;
+      if (mode === "minute") {
+        key = date.getFullYear()+"-"+(date.getMonth()+1)+"-"+date.getDate()+" "+date.getHours()+":"+date.getMinutes();
+      } else if (mode === "hour") {
+        key = date.getFullYear()+"-"+(date.getMonth()+1)+"-"+date.getDate()+" "+date.getHours();
+      } else if (mode === "month") {
+        key = date.getFullYear()+"-"+(date.getMonth()+1);
+      }
+      if (!grouped[key]) {
+        grouped[key] = { count: 0, sums: [0,0,0,0,0] };
+      }
+      for (let i=1; i<=5; i++) grouped[key].sums[i-1] += parseFloat(r[i]);
+      grouped[key].count++;
+    });
+    return Object.entries(grouped).map(([k,v]) => [k, ...v.sums.map(s => (s/v.count).toFixed(2))]);
+  }
+
+  function resetScroll() {
+    document.getElementById("scrollX").value = Math.max(0, allData.labels.length - getPointsToShow());
+    updateVisibleData();
+  }
+
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
+  }
+
+  function exportCSV() {
+    let csv = "Time,Temp,Hum,Smoke,Gas,Flame\n";
+    for (let i = 0; i < allData.labels.length; i++) {
+      csv += `${allData.labels[i]},${allData.temp[i]},${allData.hum[i]},${allData.gas1[i]},${allData.gas2[i]},${allData.fire[i]}\n`;
+    }
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "sensor_data.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  window.onload = () => {
+    charts.chartTemp = createChart(document.getElementById("chartTemp"), "Temperature (°C)", "orange", "🌡️");
+    charts.chartHum  = createChart(document.getElementById("chartHum"), "Humidity (%)", "#60a5fa", "💧");
+    charts.chartGas1 = createChart(document.getElementById("chartGas1"), "Smoke", "white", "💨");
+    charts.chartGas2 = createChart(document.getElementById("chartGas2"), "Gas", "#facc15", "☁️⚠️");
+    charts.chartFire = createChart(document.getElementById("chartFire"), "Flame", "red", "⚠️🔥");
+
+    fetchData();
+    setInterval(fetchData, 2000);
+  document.getElementById("avgOption").addEventListener("change", fetchData);
+    document.getElementById("pointsToShow").addEventListener("change", () => {
+      document.getElementById("scrollX").max = Math.max(0, allData.labels.length - getPointsToShow());
+      if (autoScroll) resetScroll(); else updateVisibleData();
+    });
+    document.getElementById("scrollX").addEventListener("input", () => {
+      autoScroll = (parseInt(document.getElementById("scrollX").value) >= allData.labels.length - getPointsToShow());
+      updateVisibleData();
+    });
+
+    document.getElementById("toggleSMA").addEventListener("click", () => {
+      smaEnabled = !smaEnabled;
+      document.getElementById("toggleSMA").textContent = smaEnabled ? "Tắt SMA" : "Bật SMA";
+      updateSMA();
+    });
+
+    document.getElementById("smaPoints").addEventListener("change", () => {
+      if (smaEnabled) updateSMA();
+    });
+
+    // Khi chọn menu
+    document.getElementById("mainMenu").addEventListener("change", (e) => {
+      const val = e.target.value;
+      smaEnabled = 0;
+      document.getElementById("smaSettings").style.display = (val === "phanTich") ? "block" : "none";
+    });
+
+    // Cập nhật video YouTube
+    // Gán vào iframe
+    document.getElementById("yt-frame").src =
+      `https://www.youtube.com/embed/${VIDEO_ID}?autoplay=${autoplay}&mute=${mute}`;
+
+  };
+  </script>
+  </body>
+  </html>
